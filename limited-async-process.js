@@ -2,8 +2,12 @@ async function fetchData(url) {
     return new Promise((resolve, reject) => {
         // setTimeout imitates long time request
         setTimeout(() => {
-            console.log(`Fetched: ${url}`);
-            resolve(`Result from ${url}`);
+            if (Math.random() < 0.7) {
+                console.log(`Fetched: ${url}`);
+                resolve(`Result from ${url}`);
+            } else {
+                reject(new Error(`Error fetching ${url}`));
+            }
         }, Math.random() * 2000);
     })
 }
@@ -11,16 +15,24 @@ async function fetchData(url) {
 const processUrls = async (urls, limit) => {
     // Results from each url
     const results = [];
+    // Results with errors
+    const errors = [];
     // limited queue
     const queue = [];
 
     for (const url of urls) {
-        const promise = fetchData(url).then(result => {
-            results.push(result);
-            console.log(queue.indexOf(promise));
-            // remove the promise from queue
-            queue.slice(queue.indexOf(promise), 1);
-        })
+        const promise = fetchData(url)
+            .then(result => {
+                results.push(result);
+            })
+            .catch((error) => {
+                console.error(`Failed to fetch ${url}:`, error.message);
+                errors.push({ url, error: error.message });
+            })
+            .finally(() => {
+                // remove the promise from queue anyway
+                queue.slice(queue.indexOf(promise), 1);
+            })
 
         queue.push(promise);
 
@@ -30,7 +42,7 @@ const processUrls = async (urls, limit) => {
         }
     }
     await Promise.all(queue);
-    return results;
+    return { results, errors };
 }
 
 const urls = [
@@ -42,6 +54,7 @@ const urls = [
     "https://example.com/api/6"
 ];
 
-processUrls(urls, 3).then((results) => {
-    console.log("All URLs processed:", results);
+processUrls(urls, 3).then(({ results, errors}) => {
+    console.log("All URLs processed successfully:", results);
+    console.log("Errors encountered:", errors);
 });
